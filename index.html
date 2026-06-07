@@ -987,12 +987,16 @@ function renderHome(){
 // ============ LEARN ============
 function startLearn(cat){
   currentCat=cat;
-  const matchCat = (cat==='轮机') ? (w=>w.cat.includes('轮机')) : (cat ? (w=>w.cat===cat) : (w=>true));
-  const pool=WORDS.filter(matchCat);
-  const due=getDue().filter(w=>matchCat(w));
-  const nw=getNew(5).filter(w=>matchCat(w));
-  queue=[...due,...nw].filter((v,i,a)=>a.findIndex(x=>x.en===v.en)===i);
-  if(!queue.length) queue=pool.sort(()=>Math.random()-.5).slice(0,5);
+  var matchCat = (cat==='轮机') ? function(w){return w.cat.indexOf('轮机')>=0} : (cat ? function(w){return w.cat===cat} : function(w){return true});
+  var pool=WORDS.filter(matchCat);
+  if(!pool.length){renderHome();toast('该分类暂无单词');return;}
+  // Get due reviews in this category
+  var due=getDue().filter(matchCat);
+  // Get unlearned words FROM THIS CATEGORY first
+  var unlearned=pool.filter(function(w){return !S[w.en]});
+  var nw=unlearned.sort(function(){return Math.random()-.5}).slice(0,5);
+  queue=due.concat(nw).filter(function(v,i,a){return a.findIndex(function(x){return x.en===v.en})===i});
+  if(!queue.length) queue=pool.sort(function(){return Math.random()-.5}).slice(0,10);
   idx=0;revealed=false;
   showScreen('learn');
   renderCard();
