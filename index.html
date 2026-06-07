@@ -73,6 +73,10 @@ body.learn-shown{overflow:hidden;position:fixed;width:100%}
 .complete .msg{font-size:18px;font-weight:600;margin-bottom:8px}
 .complete .sub{font-size:13px;color:var(--sub);margin-bottom:24px}
 .complete button{padding:12px 32px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer}
+.search-wrap{padding:4px 0 8px}
+.search-wrap input{width:100%;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;outline:none;-webkit-appearance:none}
+.search-wrap input:focus{border-color:var(--accent)}
+.search-wrap input::placeholder{color:var(--sub)}
 .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(44,36,22,.92);color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;z-index:999;pointer-events:none;opacity:0;transition:opacity .3s}
 .toast.show{opacity:1}
 </style>
@@ -957,31 +961,66 @@ function showScreen(name){
   document.body.className = name==='home'?'home-shown':'learn-shown';
 }
 
+var dailyGoal = parseInt(localStorage.getItem('eto_goal')||'20');
+var darkMode = localStorage.getItem('eto_dark')==='1';
+
+function toggleDark(){
+  darkMode=!darkMode;
+  localStorage.setItem('eto_dark',darkMode?'1':'0');
+  var r=document.documentElement;
+  if(darkMode){r.style.setProperty('--bg','#1a1d23');r.style.setProperty('--card','#252830');r.style.setProperty('--text','#d4d6db');r.style.setProperty('--sub','#8e929a');r.style.setProperty('--border','rgba(255,255,255,.08)');}
+  else{r.style.setProperty('--bg','#f5f0e8');r.style.setProperty('--card','#ffffff');r.style.setProperty('--text','#2c2416');r.style.setProperty('--sub','#8c8273');r.style.setProperty('--border','rgba(0,0,0,.06)');}
+  renderHome();
+}
+function setGoal(){var g=prompt('每日学习目标(单词数):',dailyGoal);if(g&&parseInt(g)>0){dailyGoal=parseInt(g);localStorage.setItem('eto_goal',String(dailyGoal));renderHome();}}
+
 // ============ HOME ============
 function renderHome(){
   showScreen('home');
-  const total=WORDS.length, mastered=Object.values(S).filter(v=>v>=5).length;
-  const learning=Object.values(S).filter(v=>v>=1&&v<5).length;
+  const total=WORDS.length, mastered=Object.values(S).filter(function(v){return v>=5}).length;
+  const learning=Object.values(S).filter(function(v){return v>=1&&v<5}).length;
   const due=getDue().length;
-  const today=JSON.parse(localStorage.getItem('eto_today_v2')||'{"d":"","c":0}');
+  const today=JSON.parse(localStorage.getItem('eto_today_v2')||'{\"d\":\"\",\"c\":0}');
   const td=new Date().toDateString();
   if(today.d!==td){today.d=td;today.c=0;localStorage.setItem('eto_today_v2',JSON.stringify(today));}
+  const goalPct = Math.min(100,Math.round(today.c/dailyGoal*100));
 
-  document.getElementById('screen-home').innerHTML=`
-    <div class="topbar"><div></div><div class="title">不背单词</div><div></div></div>
-    <div class="stats-row">
-      <div class="stat-circle"><svg viewBox="0 0 86 86"><circle class="bg" cx="43" cy="43" r="40"/><circle class="fg" cx="43" cy="43" r="40" style="stroke-dashoffset:${264*(1-mastered/total)}"/></svg><div class="num">${mastered}</div><div class="lbl">已掌握</div></div>
-      <div class="stat-circle"><svg viewBox="0 0 86 86"><circle class="bg" cx="43" cy="43" r="40"/><circle class="fg" cx="43" cy="43" r="40" style="stroke-dashoffset:${264*(1-learning/Math.max(total,1))}"/></svg><div class="num">${learning}</div><div class="lbl">学习中</div></div>
-      <div class="stat-circle"><div class="num" style="color:var(--green)">${today.c}</div><div class="lbl">今日学习</div></div>
-    </div>
-    <div style="padding:12px 0;text-align:center">
-      <div style="font-size:13px;color:var(--sub);margin-bottom:8px">待复习 <b style="color:var(--orange)">${due}</b> 个单词</div>
-      ${due>0?'<button onclick="startReview()" style="padding:12px 40px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer">开始复习</button>':'<div style="font-size:13px;color:var(--green)">全部已复习!</div>'}
-    </div>
-    <div style="padding:8px 0;font-size:14px;font-weight:600">⚡ ETO 电子电气员</div>
-    <div class="cat-grid">${(()=>{const all=WORDS.map(w=>w.cat);const eto=[...new Set(all)].filter(c=>!c.includes('轮机')).sort();let h='';h+='<div class="cat-item" onclick="startLearn(null)" style="border-left:3px solid var(--accent)"><div><div class="cn">全部ETO词汇</div></div><div class="cnt">'+WORDS.filter(w=>!w.cat.includes('轮机')).length+'</div></div>';eto.forEach(c=>{const cnt=WORDS.filter(w=>w.cat===c).length;h+='<div class="cat-item" onclick="startLearn(\"'+c+'\")"><div><div class="cn">'+c+'</div></div><div class="cnt">'+cnt+'</div></div>';});return h;})()}</div>
-    <div style="padding:12px 0 8px;font-size:14px;font-weight:600">⚙️ 轮机工程 Marine Engineering</div>
-    <div class="cat-grid">${(()=>{const me=[...new Set(WORDS.map(w=>w.cat))].filter(c=>c.includes('轮机')).sort();let h='';h+='<div class="cat-item" onclick="startLearn(\"轮机\")" style="border-left:3px solid var(--orange)"><div><div class="cn">全部轮机词汇</div></div><div class="cnt">'+WORDS.filter(w=>w.cat.includes('轮机')).length+'</div></div>';me.forEach(c=>{const cnt=WORDS.filter(w=>w.cat===c).length;h+='<div class="cat-item" onclick="startLearn(\"'+c+'\")"><div><div class="cn">'+c+'</div></div><div class="cnt">'+cnt+'</div></div>';});return h;})()}</div>`;
+  document.getElementById('screen-home').innerHTML=
+    '<div class=\"topbar\"><div></div><div class=\"title\" onclick=\"setGoal()\" title=\"点击设置每日目标\">不背单词 <span style=\"font-size:11px;color:var(--sub)\">'+today.c+'/'+dailyGoal+'</span></div><div style=\"font-size:20px;cursor:pointer\" onclick=\"toggleDark()\">'+(darkMode?'☀️':'🌙')+'</div></div>'+
+    '<div class=\"search-wrap\"><input type=\"text\" id=\"searchBox\" placeholder=\"搜索825个单词...\" oninput=\"searchWords()\" autocomplete=\"off\"></div>'+
+    '<div class=\"stats-row\">'+
+      '<div class=\"stat-circle\" onclick=\"startReview()\"><svg viewBox=\"0 0 86 86\"><circle class=\"bg\" cx=\"43\" cy=\"43\" r=\"40\"/><circle class=\"fg\" cx=\"43\" cy=\"43\" r=\"40\" style=\"stroke-dashoffset:'+(264*(1-mastered/total))+'\" stroke=\"var(--green)\"/></svg><div class=\"num\">'+mastered+'</div><div class=\"lbl\">已掌握</div></div>'+
+      '<div class=\"stat-circle\"><svg viewBox=\"0 0 86 86\"><circle class=\"bg\" cx=\"43\" cy=\"43\" r=\"40\"/><circle class=\"fg\" cx=\"43\" cy=\"43\" r=\"40\" style=\"stroke-dashoffset:'+(264*(1-learning/Math.max(total,1)))+'\"/></svg><div class=\"num\">'+learning+'</div><div class=\"lbl\">学习中</div></div>'+
+      '<div class=\"stat-circle\"><svg viewBox=\"0 0 86 86\"><circle class=\"bg\" cx=\"43\" cy=\"43\" r=\"40\"/><circle class=\"fg\" cx=\"43\" cy=\"43\" r=\"40\" style=\"stroke-dashoffset:'+(264*(1-goalPct/100))+'\" stroke=\"var(--accent)\"/></svg><div class=\"num\" style=\"color:var(--accent)\">'+goalPct+'%</div><div class=\"lbl\">今日目标</div></div>'+
+    '</div>'+
+    '<div style=\"padding:12px 0;text-align:center\">'+
+      '<div style=\"font-size:13px;color:var(--sub);margin-bottom:8px\">待复习 <b style=\"color:var(--orange)\">'+due+'</b> 个 · 已掌握 <b style=\"color:var(--green)\">'+Math.round(mastered/total*100)+'%</b></div>'+
+      (due>0?'<button onclick=\"startReview()\" style=\"padding:12px 40px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer\">开始复习 '+due+' 词</button>':'<div style=\"font-size:13px;color:var(--green)\">全部已复习! 点分类学习新词</div>')+
+    '</div>'+
+    '<div style=\"padding:8px 0;font-size:14px;font-weight:600\">ETO 电子电气员</div>'+
+    '<div class=\"cat-grid\">'+(function(){
+      var all=WORDS.map(function(w){return w.cat});
+      var eto=[...new Set(all)].filter(function(c){return c.indexOf('轮机')<0}).sort();
+      var h='<div class=\"cat-item\" onclick=\"startLearn(null)\" style=\"border-left:3px solid var(--accent)\"><div><div class=\"cn\">All ETO</div></div><div class=\"cnt\">'+WORDS.filter(function(w){return w.cat.indexOf('轮机')<0}).length+'</div></div>';
+      eto.forEach(function(c){
+        var cnt=WORDS.filter(function(w){return w.cat===c}).length;
+        var dueCnt=getDue().filter(function(w){return w.cat===c}).length;
+        h+='<div class=\"cat-item\" onclick=\"startLearn(\\''+c+'\\')\"><div><div class=\"cn\">'+c+'</div>'+(dueCnt>0?'<div style=\"font-size:9px;color:var(--orange)\">'+dueCnt+'待复习</div>':'')+'</div><div class=\"cnt\">'+cnt+'</div></div>';
+      });
+      return h;
+    })()+'</div>'+
+    '<div style=\"padding:12px 0 8px;font-size:14px;font-weight:600\">Marine Engineering 轮机工程</div>'+
+    '<div class=\"cat-grid\">'+(function(){
+      var me=[...new Set(WORDS.map(function(w){return w.cat}))].filter(function(c){return c.indexOf('轮机')>=0}).sort();
+      var h='<div class=\"cat-item\" onclick=\"startLearn(\\'轮机\\')\" style=\"border-left:3px solid var(--orange)\"><div><div class=\"cn\">All ME</div></div><div class=\"cnt\">'+WORDS.filter(function(w){return w.cat.indexOf('轮机')>=0}).length+'</div></div>';
+      me.forEach(function(c){
+        var cnt=WORDS.filter(function(w){return w.cat===c}).length;
+        var dueCnt=getDue().filter(function(w){return w.cat===c}).length;
+        h+='<div class=\"cat-item\" onclick=\"startLearn(\\''+c+'\\')\"><div><div class=\"cn\">'+c+'</div>'+(dueCnt>0?'<div style=\"font-size:9px;color:var(--orange)\">'+dueCnt+'待复习</div>':'')+'</div><div class=\"cnt\">'+cnt+'</div></div>';
+      });
+      return h;
+    })()+'</div>'+
+    '<div id=\"searchResults\" style=\"display:none;padding:8px 0\"></div>';
 }
 
 // ============ LEARN ============
@@ -1069,6 +1108,25 @@ function startReview(){
   renderCard();
 }
 
+function searchWords(){
+  var q = document.getElementById('searchBox').value.toLowerCase().trim();
+  var results = document.getElementById('searchResults');
+  if(!q){results.style.display='none';return;}
+  var matches = WORDS.filter(function(w){return w.en.toLowerCase().indexOf(q)>=0 || w.zh.indexOf(q)>=0}).slice(0,30);
+  if(!matches.length){results.style.display='block';results.innerHTML='<div style=\"padding:20px;text-align:center;color:var(--sub)\">未找到匹配单词</div>';return;}
+  var h='<div style=\"font-size:13px;font-weight:600;margin-bottom:8px\">搜索结果 ('+matches.length+'个)</div>';
+  matches.forEach(function(w){
+    h+='<div class=\"cat-item\" onclick=\"quickLearn(\\''+w.en.replace(/'/g,\"\\\\'\")+'\\')\" style=\"margin-bottom:6px\"><div><div class=\"cn\">'+w.en+'</div><div style=\"font-size:11px;color:var(--sub)\">'+w.zh+' · '+w.cat+'</div></div><div class=\"cnt\" style=\"color:'+((S[w.en]||0)>=5?'var(--green)':'var(--sub)')+'\">'+'★'.repeat(Math.min(S[w.en]||0,5))+'</div></div>';
+  });
+  results.style.display='block'; results.innerHTML=h;
+}
+function quickLearn(en){
+  var w=WORDS.find(function(x){return x.en===en});
+  if(!w)return;
+  queue=[w]; idx=0; revealed=false; currentCat=w.cat;
+  showScreen('learn'); renderCard();
+}
+
 function switchTab(i){
   document.querySelectorAll('.bottom-nav .nav-item').forEach((el,j)=>el.classList.toggle('active',j===i));
   if(i===0) renderHome();
@@ -1076,6 +1134,12 @@ function switchTab(i){
   else if(i===2) startReview();
 }
 
+// Dark mode init
+if(localStorage.getItem('eto_dark')==='1'){
+  var r=document.documentElement;
+  r.style.setProperty('--bg','#1a1d23');r.style.setProperty('--card','#252830');r.style.setProperty('--text','#d4d6db');r.style.setProperty('--sub','#8e929a');r.style.setProperty('--border','rgba(255,255,255,.08)');
+  darkMode=true;
+}
 // Init
 renderHome();
 // PWA Install
