@@ -861,7 +861,29 @@ var IV=[1,10,60,360,1440,4320,10080,43200];
 function save(){localStorage.setItem(K,JSON.stringify(S));localStorage.setItem(K+"_r",JSON.stringify(R));}
 function sched(en,q){var lv=Math.max(0,Math.min(7,(S[en]||0)+q));S[en]=lv;if(lv<=0)delete R[en];else R[en]=Date.now()+IV[Math.min(lv,7)]*60000;save();}
 function due(){var n=Date.now();return W.filter(function(w){return R[w.en]&&R[w.en]<=n}).sort(function(a,b){return R[a.en]-R[b.en]});}
-function speak(){if(!window.speechSynthesis)return;var w=q[i];if(!w)return;var u=new SpeechSynthesisUtterance(w.en);u.lang="en-US";u.rate=0.85;speechSynthesis.speak(u);}
+var _hasVoice=false;
+function checkVoice(){
+  if(!window.speechSynthesis)return false;
+  var voices=speechSynthesis.getVoices();
+  for(var j=0;j<voices.length;j++){if(voices[j].lang.indexOf("en")===0){_hasVoice=true;return true;}}
+  return false;
+}
+speechSynthesis.onvoiceschanged=function(){checkVoice();};
+function speak(){
+  if(!window.speechSynthesis||!_hasVoice){
+    var b=document.getElementById("spkBtn");if(b)b.innerHTML="no voice - install Google TTS";
+    return;
+  }
+  var w=q[i];if(!w)return;
+  speechSynthesis.cancel();
+  var u=new SpeechSynthesisUtterance(w.en);
+  u.lang="en-US";u.rate=0.85;u.volume=1;
+  var voices=speechSynthesis.getVoices();
+  for(var j=0;j<voices.length;j++){
+    if(voices[j].lang.indexOf("en")===0&&voices[j].localService){u.voice=voices[j];break;}
+  }
+  speechSynthesis.speak(u);
+}
 
 var q=[],i=0,rv=false,daily=parseInt(localStorage.getItem("eto_goal")||"20");
 var td=new Date().toDateString();
@@ -916,10 +938,11 @@ function learn(){
     "<div style=\"font-size:11px;color:#8c8273;text-align:center;margin:4px 0\">"+(i+1)+"/"+q.length+" · "+w.cat+"</div>"+
     "<div class=\"card\">"+
       "<div class=\"ex\">"+w.ex+"</div>"+
-      "<div onclick=\"reveal();speak();\" style=\"cursor:pointer\" id=\"rv\">"+
+      "<div onclick=\"reveal()\" style=\"cursor:pointer\" id=\"rv\">"+
         "<div class=\"en\" style=\""+(rv?"":"filter:blur(6px)")+"\">"+w.en+"</div>"+
-        "<div style=\"font-size:13px;color:#8c8273;margin:4px 0\">"+(rv?w.zh:"点此查看释义+朗读")+"</div>"+
+        "<div style=\"font-size:13px;color:#8c8273;margin:4px 0\">"+(rv?w.zh:"点击查看释义")+"</div>"+
       "</div>"+
+      (rv?"<div class=\"speak\" id=\"spkBtn\" onclick=\"speak()\">朗读</div>":"")+
     "</div>"+
     "<div class=\"act\" style=\""+(rv?"":"display:none")+"\">"+
       "<button class=\"f\" onclick=\"rate(-1)\">不认识</button>"+
@@ -929,7 +952,7 @@ function learn(){
     "</div>";
 }
 
-function reveal(){rv=true;var w=q[i];document.getElementById("rv").innerHTML="<div class=\"en\">"+w.en+"</div><div class=\"zh\">"+w.zh+"</div><div style=\"font-size:12px;color:#8c8273;margin-top:4px\">"+w.ex+"</div>";document.querySelector(".act").style.display="flex";}
+function reveal(){rv=true;var w=q[i];document.getElementById("rv").innerHTML="<div class=\"en\">"+w.en+"</div><div class=\"zh\">"+w.zh+"</div><div style=\"font-size:12px;color:#8c8273;margin-top:4px\">"+w.ex+"</div><div class=\"speak\" id=\"spkBtn\" onclick=\"speak()\">朗读</div>";document.querySelector(".act").style.display="flex";setTimeout(function(){if(_hasVoice)speak();},100);}
 
 function rate(v){sched(q[i].en,v);i++;rv=false;learn();}
 
